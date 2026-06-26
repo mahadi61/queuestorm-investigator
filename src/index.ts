@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import * as dotenv from 'dotenv';
-import { analyzeTicket } from './analyzer';
+import { analyzeTicket } from './analyzer.js';
 
 dotenv.config();
 
@@ -37,4 +37,4 @@ app.listen(PORT, () => {
   console.log(`QueueStorm Investigator server is running on port ${PORT}`);
 });
 
-export = app;
+export default app;

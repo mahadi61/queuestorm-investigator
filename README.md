@@ -1,16 +1,16 @@
 # QueueStorm Investigator 🔍
 
-An internal AI copilot for digital financial services support teams. It analyzes incoming customer support tickets, cross-references them against a transaction history array, and returns a single, strictly-structured JSON verdict — powered by the **Anthropic Claude API**.
+An internal AI copilot for digital financial services support teams. It analyzes incoming customer support tickets, cross-references them against a transaction history array, and returns a single, strictly-structured JSON verdict — powered by the **OpenRouter API** calling **OpenAI GPT-4o**.
 
 ---
 
 ## Tech Stack
 
-- **Runtime**: Node.js
+- **Runtime**: Node.js (`>= 18`)
 - **Language**: TypeScript
 - **Framework**: Express.js
-- **AI Model**: Anthropic Claude (`claude-sonnet-4-6`)
-- **SDK**: `@anthropic-ai/sdk`
+- **AI Model**: OpenAI GPT-4o (`openai/gpt-4o`) via OpenRouter
+- **Client**: Native global `fetch`
 
 ---
 
@@ -18,7 +18,7 @@ An internal AI copilot for digital financial services support teams. It analyzes
 
 - Node.js `>= 18`
 - npm `>= 9`
-- An **Anthropic API Key** (get one at [console.anthropic.com](https://console.anthropic.com))
+- An **OpenRouter API Key** (get one at [openrouter.ai](https://openrouter.ai))
 
 ---
 
@@ -43,7 +43,7 @@ cp .env.example .env
 Edit `.env`:
 
 ```env
-ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxx
+OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxx
 PORT=3000
 ```
 
@@ -375,6 +375,41 @@ After each test, verify in the response that:
 
 ---
 
+## AI Usage & Request Details
+
+The investigator integrates with OpenRouter's endpoint `https://openrouter.ai/api/v1/chat/completions` using the native global `fetch` API of Node.js 18+.
+
+- **Model**: `openai/gpt-4o`
+- **Output Format**: Hard-enforced JSON mode using `response_format: { type: 'json_object' }`.
+- **Parameters**: `temperature: 0.1` (for deterministic classification results) and `max_tokens: 1000` (to maintain budget/credit limits).
+
+---
+
+## Safety Logic & Guardrails
+
+The application enforces critical compliance, security, and communication rules within its operational prompt:
+
+1. **Anti-Credential Harvester**: The AI will *never* request PINs, OTPs, passwords, or full credentials from the customer, nor will it suggest doing so.
+2. **Refund Guarantee Limits**: The AI is prohibited from guaranteeing refunds or balance reversals (e.g., "we will refund you"). It must use conditional, regulatory phrasing (e.g., "any eligible amount will be processed through official channels according to standard verification policies").
+3. **No Unofficial Redirects**: The AI will only refer users to official application/web channels and never provide external numbers or unofficial groups.
+4. **Prompt Injection Defense**: If a user tries to hijack the model instructions (e.g., "Ignore previous rules"), the AI ignores the meta-commands, evaluates the underlying transaction history and complaint facts, and categorizes the ticket accurately.
+
+---
+
+## Limitations & Human Intervention
+
+To guarantee security and accuracy, the system is designed with safeguards and bounds:
+
+- **Token Limits**: Completion outputs are capped at `1000` tokens.
+- **Human Review Escalation**: A ticket is flagged for human intervention (`human_review_required: true`) if:
+  - The ticket involves high-risk cases: `wrong_transfer`, `phishing_or_social_engineering`, or `duplicate_payment`.
+  - The transaction history contradicts the complaint (`evidence_verdict: inconsistent`).
+  - The severity of the incident is categorized as `high` or `critical`.
+  - The transactional amount exceeds `5000 BDT`.
+- **API Availability**: If the OpenRouter API experiences downtime or rate limits, the system catches the network failure cleanly and issues a standard HTTP `500` server error.
+
+---
+
 ## Project Structure
 
 ```
@@ -384,6 +419,7 @@ queuestorm-investigator/
 │   └── index.ts           # Express server + route definitions
 ├── dist/                  # Compiled JavaScript output (auto-generated)
 ├── .env                   # Environment variables (not committed)
+├── .env.example           # Environment variables template
 ├── tsconfig.json          # TypeScript compiler configuration
 ├── package.json
 └── README.md

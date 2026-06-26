@@ -1,8 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk';
-
-const client = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY
-});
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 const SYSTEM_PROMPT = `You are QueueStorm Investigator, an internal AI copilot for a digital financial services support team (similar to bKash). Your job is to analyze incoming user support tickets, cross-reference them against a provided transaction history array, determine evidence consistency, and output a single, strictly formatted JSON response.
 
@@ -94,26 +91,45 @@ campaign_context: ${input.campaign_context || 'none'}
 transaction_history:
 ${JSON.stringify(input.transaction_history || [], null, 2)}`;
 
-    const response = await client.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: userMessage }]
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+        throw new Error('OPENROUTER_API_KEY is not defined in the environment variables.');
+    }
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': 'https://queuestorm.ai',
+            'X-Title': 'QueueStorm Investigator',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: 'openai/gpt-4o',
+            messages: [
+                {
+                    role: 'system',
+                    content: SYSTEM_PROMPT
+                },
+                {
+                    role: 'user',
+                    content: userMessage
+                }
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.1,
+            max_tokens: 1000
+        })
     });
 
-    // Extract text from response
-    const rawText = response.content
-        .filter((block: any) => block.type === 'text')
-        .map((block: any) => block.text)
-        .join('');
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`OpenRouter API error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
 
-    // Clean any accidental markdown fences
-    const cleaned = rawText
-        .replace(/```json/g, '')
-        .replace(/```/g, '')
-        .trim();
-
-    const parsed = JSON.parse(cleaned);
+    const data: any = await response.json();
+    const rawText = data.choices?.[0]?.message?.content ?? '';
+    const parsed = JSON.parse(rawText);
 
     // Safety net: always echo correct ticket_id
     parsed.ticket_id = input.ticket_id;
