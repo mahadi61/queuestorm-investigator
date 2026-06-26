@@ -54,6 +54,9 @@ const handleRequest = async (req, res) => {
         });
     }
 };
+app.get('/health', (_req, res) => {
+    res.json({ status: 'ok' });
+});
 app.post('/', handleRequest);
 app.post('/analyze', handleRequest);
 app.post('/investigate', handleRequest);
