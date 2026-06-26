@@ -2,10 +2,11 @@
   "name": "queuestorm-investigator",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "nodemon --watch src -e ts --exec ts-node src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -13,6 +14,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.106.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1"
   },
